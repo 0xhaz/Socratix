@@ -128,8 +128,9 @@ export async function submitAttempt(input: z.input<typeof SubmitAttemptSchema>):
   });
 
   const guardrailResponse = applyGuardrails(parsed.data.responseText, question.concept.slug);
+  const rubricOverride = guardrailResponse ? null : getRubricOverride(parsed.data.responseText, question.concept.slug);
   const fallbackDiagnosis = classifySeededAttempt(parsed.data.responseText, question.concept.slug);
-  const aiDiagnosis = guardrailResponse
+  const aiDiagnosis = guardrailResponse || rubricOverride
     ? null
     : await classifyAttemptWithAi({
       lessonTitle: question.lesson.title,
@@ -143,7 +144,7 @@ export async function submitAttempt(input: z.input<typeof SubmitAttemptSchema>):
       responseText: parsed.data.responseText,
       studentMemory: memory ? JSON.stringify(memory) : null,
     });
-  const diagnosis = forceSocraticIfNeeded(guardrailResponse?.diagnosis ?? aiDiagnosis ?? fallbackDiagnosis, parsed.data.responseText);
+  const diagnosis = forceSocraticIfNeeded(guardrailResponse?.diagnosis ?? rubricOverride ?? aiDiagnosis ?? fallbackDiagnosis, parsed.data.responseText);
   const tutorResponse = guardrailResponse?.response ?? diagnosis.student_facing_response ?? buildTutorResponse(diagnosis.type, question.concept);
   const isCorrect = diagnosis.type === "CORRECT";
   const isNextItem = parsed.data.isNextItem ?? false;
@@ -205,7 +206,7 @@ function classifySeededAttempt(responseText: string, conceptSlug: string): Seede
   if (conceptSlug === "sampling-distribution") {
     const mentionsDistribution = normalized.includes("distribution");
     const mentionsStatistic = normalized.includes("statistic") || normalized.includes("sample mean") || normalized.includes("proportion");
-    const mentionsRepeatedSamples = normalized.includes("repeated") || normalized.includes("many samples") || normalized.includes("sample to sample");
+    const mentionsRepeatedSamples = normalized.includes("repeated") || normalized.includes("many samples") || normalized.includes("many random samples") || normalized.includes("sample to sample");
 
     if (mentionsDistribution && mentionsStatistic && mentionsRepeatedSamples) {
       return {
@@ -321,14 +322,16 @@ async function upsertNextQuestion(input: {
   avoidStem: string;
   avoidResponse: string;
 }): Promise<NextQuestion> {
-  const nextItem = await generatePracticeWithAi({
-    lessonTitle: input.conceptName,
-    conceptName: input.conceptName,
-    conceptSlug: input.conceptSlug,
-    methodNote: input.methodNote,
-    avoidStem: input.avoidStem,
-    avoidResponse: input.avoidResponse,
-  }) ?? buildNextItem(input.conceptSlug);
+  const nextItem = input.conceptSlug === "sampling-distribution"
+    ? buildNextItem(input.conceptSlug)
+    : await generatePracticeWithAi({
+      lessonTitle: input.conceptName,
+      conceptName: input.conceptName,
+      conceptSlug: input.conceptSlug,
+      methodNote: input.methodNote,
+      avoidStem: input.avoidStem,
+      avoidResponse: input.avoidResponse,
+    }) ?? buildNextItem(input.conceptSlug);
   const existingQuestion = await prisma.question.findFirst({
     where: {
       lessonId: input.lessonId,
@@ -444,6 +447,46 @@ function applyGuardrails(responseText: string, conceptSlug: string): { diagnosis
       },
       response,
     };
+  }
+
+  return null;
+}
+
+function getRubricOverride(responseText: string, conceptSlug: string): Diagnosis | null {
+  const normalized = responseText.toLowerCase();
+
+  if (conceptSlug === "sampling-distribution") {
+    const mentionsStatistic = normalized.includes("statistic") || normalized.includes("sample mean") || normalized.includes("proportion");
+    const mentionsRepeatedSamples = normalized.includes("repeated") || normalized.includes("many samples") || normalized.includes("many random samples") || normalized.includes("sample to sample");
+    const treatsAsIndividualDistribution = normalized.includes("individual") || normalized.includes("one sample") || normalized.includes("population values") || normalized.includes("data values");
+
+    if ((!mentionsStatistic || !mentionsRepeatedSamples) || treatsAsIndividualDistribution) {
+      return {
+        type: "CONCEPTUAL",
+        misconception: "Does not yet distinguish a sampling distribution from a distribution of individual observations.",
+        prerequisite_missing: null,
+        confidence: 0.9,
+        student_facing_move: "SOCRATIC_QUESTION",
+        student_facing_response: "Good start. Now tighten one distinction: is a sampling distribution about the values of individual people or measurements, or about the values of a statistic across repeated samples?",
+      };
+    }
+  }
+
+  if (conceptSlug === "p-value-interpretation") {
+    const mentionsNullTruth = normalized.includes("null") && normalized.includes("true");
+    const treatsHypothesisAsProbability = normalized.includes("chance") || normalized.includes("probability") || normalized.includes("%");
+    const mentionsExtremeResults = normalized.includes("extreme") || normalized.includes("as extreme");
+
+    if (mentionsNullTruth && treatsHypothesisAsProbability && !mentionsExtremeResults) {
+      return {
+        type: "CONCEPTUAL",
+        misconception: "Treats the p-value as the probability that the null hypothesis is true.",
+        prerequisite_missing: null,
+        confidence: 0.95,
+        student_facing_move: "SOCRATIC_QUESTION",
+        student_facing_response: "Pause on what the p-value is conditioned on. If we assume the null hypothesis were true, what is the probability describing: the hypothesis itself, or data at least as extreme as the result we observed?",
+      };
+    }
   }
 
   return null;
