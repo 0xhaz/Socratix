@@ -50,3 +50,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+architecture.md
+demo-script.md
+DESIGN-bugatti.md
+workplan.md
