@@ -74,18 +74,18 @@ sequenceDiagram
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Framework | Next.js App Router |
-| Language | TypeScript |
-| ORM | Prisma |
-| Database | PostgreSQL / Neon |
-| Styling | Tailwind CSS + shadcn/ui |
-| Auth | BetterAuth |
-| Payments | Stripe |
-| Security | Arcjet |
-| AI | OpenAI Responses API, GPT-5.6, Zod Structured Outputs |
-| Package manager | pnpm |
+| Layer           | Technology                                            |
+| --------------- | ----------------------------------------------------- |
+| Framework       | Next.js App Router                                    |
+| Language        | TypeScript                                            |
+| ORM             | Prisma                                                |
+| Database        | PostgreSQL / Neon                                     |
+| Styling         | Tailwind CSS + shadcn/ui                              |
+| Auth            | BetterAuth                                            |
+| Payments        | Stripe                                                |
+| Security        | Arcjet                                                |
+| AI              | OpenAI Responses API, GPT-5.6, Zod Structured Outputs |
+| Package manager | pnpm                                                  |
 
 ## AI Design
 
@@ -161,8 +161,6 @@ Codex was used as the primary implementation partner for the hackathon extension
 This distinction matters because the LMS predates the hackathon; the Socratix tutoring layer is the new Codex/GPT-5.6 work.
 
 ## Demo Flow
-
-The recommended 3-minute walkthrough is documented in [demo-script.md](./demo-script.md).
 
 High-level path:
 
@@ -250,13 +248,13 @@ pnpm prisma migrate status
 
 ## Key Routes
 
-| Route | Purpose |
-| --- | --- |
-| `/dashboard/enrolled-courses` | Student enrolled courses |
+| Route                                           | Purpose                                      |
+| ----------------------------------------------- | -------------------------------------------- |
+| `/dashboard/enrolled-courses`                   | Student enrolled courses                     |
 | `/dashboard/enrolled-courses/[slug]/[lessonId]` | Lesson player with Socratic question surface |
-| `/admin/courses` | Existing creator course dashboard |
-| `/admin/courses/[courseId]/edit` | Existing course/chapter/lesson editor |
-| `/admin/tutor` | Socratix tutor dashboard |
+| `/admin/courses`                                | Existing creator course dashboard            |
+| `/admin/courses/[courseId]/edit`                | Existing course/chapter/lesson editor        |
+| `/admin/tutor`                                  | Socratix tutor dashboard                     |
 
 ## Project Structure
 
