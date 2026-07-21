@@ -1,0 +1,98 @@
+"use client";
+import Link from "next/link";
+import { Codesandbox } from "lucide-react";
+import Logo from "public/socratix-logo.png";
+import Image from "next/image";
+import { ThemeToggle } from "@/components/ui/themeToggle";
+import { buttonVariants } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client";
+import UserDropdown from "./userDropdown";
+import { useMemo } from "react";
+
+export default function Navbar() {
+  //* fetch user session
+  const { data: session, isPending } = authClient.useSession();
+
+  // Dynamic navigation items based on user role
+  const navigationItems = useMemo(() => {
+    const isCreator = session?.user?.role === "CREATOR";
+
+    return [
+      {
+        name: "Home",
+        href: "/",
+      },
+      {
+        name: "Dashboard",
+        href: isCreator ? "/admin/courses" : "/dashboard/enrolled-courses",
+      },
+      {
+        name: "Courses",
+        href: "/courses",
+      },
+      {
+        name: "Contact Us",
+        href: "/contact",
+      },
+    ];
+  }, [session?.user?.role]);
+
+  return (
+    <div className="sticky top-0 z-50 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/50 border-b border-border">
+      <nav className="px-4 md:px-6 lg:px-8 min-h-14 container mx-auto flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3 mr-4">
+          {/* <Codesandbox className="size-8 p-0.5 text-primary" /> */}
+          <Image src={Logo} alt="Logo" width={44} height={44} />
+          <span
+            className="text-foreground text-base uppercase tracking-[0.35em]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Socratix
+          </span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center space-x-2">
+          <div className="flex items-center">
+            {navigationItems.map(item => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors px-4 py-2"
+              >
+                {item.name}
+              </Link>
+            ))}
+          </div>
+        </nav>
+
+        {/* Mobile Navigation (theme toggle and account section) */}
+        <div className="flex items-center space-x-4">
+          <ThemeToggle />
+          {isPending ? null : session ? (
+            <>
+              <UserDropdown
+                email={session.user.email}
+                image={
+                  session.user.image ??
+                  `https://avatar.vercel.sh/${session.user.email}`
+                }
+                name={session.user.name}
+                role={session.user.role}
+              />
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className={buttonVariants({ variant: "default" })}
+              >
+                Login
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
+    </div>
+  );
+}
